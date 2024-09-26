@@ -3,10 +3,10 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
-
+import matplotlib.pyplot as plt
 
 def introduction_exercise():
     # Read the data
@@ -544,6 +544,83 @@ def pipelines_exercise():
     # Preprocessing of test data, fit model
     preds_test = clf.predict(X_test)
 
+def cross_validation():
+    # In cross-validation, we run our modeling process on different
+    # subsets of the data to get multiple measures of model quality.
+    # For small datasets
+
+    # Read the data
+    data = pd.read_csv('./input/melb_data.csv')
+    # Select subset of predictors
+    cols_to_use = ['Rooms', 'Distance', 'Landsize', 'BuildingArea', 'YearBuilt']
+    X = data[cols_to_use]
+    # Select target
+    y = data.Price
+
+    my_pipeline = Pipeline(steps=[('preprocessor', SimpleImputer()),
+                                  ('model', RandomForestRegressor(
+                                      n_estimators=50,random_state=0))])
+    # Multiply by -1 since sklearn calculates *negative* MAE
+    scores = -1 * cross_val_score(my_pipeline, X, y,
+                                  cv=5,
+                                  scoring='neg_mean_absolute_error')
+
+    print("MAE scores:\n", scores)
+
+    print("Average MAE score (across experiments):")
+    print(scores.mean())
+
+def cross_validation_exercise():
+    # Read the data
+    train_data = pd.read_csv('./input/train.csv', index_col='Id')
+    test_data = pd.read_csv('./input/test.csv', index_col='Id')
+    # Remove rows with missing target, separate target from predictors
+    train_data.dropna(axis=0, subset=['SalePrice'], inplace=True)
+    y = train_data.SalePrice
+    train_data.drop(['SalePrice'], axis=1, inplace=True)
+    # Select numeric columns only
+    numeric_cols = [cname for cname in train_data.columns if train_data[cname].dtype in ['int64', 'float64']]
+    X = train_data[numeric_cols].copy()
+    X_test = test_data[numeric_cols].copy()
+
+    print(X.head())
+    my_pipeline = Pipeline(steps=[
+        ('preprocessor', SimpleImputer()),
+        ('model', RandomForestRegressor(n_estimators=50, random_state=0))
+    ])
+
+    # Multiply by -1 since sklearn calculates *negative* MAE
+    scores = -1 * cross_val_score(my_pipeline, X, y,
+                                  cv=5,
+                                  scoring='neg_mean_absolute_error')
+
+    print("Average MAE score:", scores.mean())
+
+    def get_score(n_estimators):
+        """Return the average MAE over 3 CV folds of random forest model.
+
+        Keyword argument:
+        n_estimators -- the number of trees in the forest
+        """
+        # Replace this body with your own code
+        my_pipeline = Pipeline(steps=[
+            ('preprocessor', SimpleImputer()),
+            ('model', RandomForestRegressor(n_estimators, random_state=0))
+        ])
+
+        # Multiply by -1 since sklearn calculates *negative* MAE
+        scores = -1 * cross_val_score(my_pipeline, X, y,
+                                      cv=3,
+                                      scoring='neg_mean_absolute_error')
+        return scores.mean()
+    results = {x: get_score(x) for x in range(50, 401, 50)}
+    print(results)
+    # plt.plot(list(results.keys()), list(results.values()))
+    # plt.show()
+
+    n_estimators_best = min(results, key=results.get)
+    print(n_estimators_best)
+
 if __name__ == '__main__':
     # introduction_exercise()
     # missing_values()
@@ -551,4 +628,6 @@ if __name__ == '__main__':
     # categorical_variables()
     # categorical_variables_exercise()
     # pipelines()
-    pipelines_exercise()
+    # pipelines_exercise()
+    # cross_validation()
+    cross_validation_exercise()
