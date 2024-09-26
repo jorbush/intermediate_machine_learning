@@ -1,10 +1,10 @@
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
@@ -726,6 +726,61 @@ def xgboost_exercise():
     predictions_3 = my_model_3.predict(X_valid)
     print("Mean Absolute Error model_3: " + str(mean_absolute_error(predictions_3, y_valid)))
 
+def data_leakage():
+    # Data leakage (or leakage) happens when your training data
+    # contains information about the target, but similar data will
+    # not be available when the model is used for prediction.
+    # Leakage causes a model to look accurate until you start making
+    # decisions with the model, and then the model becomes very inaccurate.
+
+    # two main types of leakage: target leakage and train-test contamination
+
+    # Target leakage occurs when your predictors include data that will not
+    # be available at the time you make predictions.
+
+    # Train-Test Contamination: when you aren't careful to distinguish
+    # training data from validation data.
+
+    # Read the data
+    data = pd.read_csv('./input/AER_credit_card_data.csv',
+                       true_values=['yes'], false_values=['no'])
+    # Select target
+    y = data.card
+    # Select predictors
+    X = data.drop(['card'], axis=1)
+    print("Number of rows in the dataset:", X.shape[0])
+    X.head()
+    # small dataset -> cross validation
+
+    # Since there is no preprocessing, we don't need a pipeline (used anyway as best practice!)
+    my_pipeline = make_pipeline(RandomForestClassifier(n_estimators=100))
+    cv_scores = cross_val_score(my_pipeline, X, y,
+                                cv=5,
+                                scoring='accuracy')
+
+    print("Cross-validation accuracy: %f" % cv_scores.mean())
+
+    # 98% accurate -> suspicious
+    expenditures_cardholders = X.expenditure[y]
+    expenditures_noncardholders = X.expenditure[~y]
+
+    print('Fraction of those who did not receive a card and had no expenditures: %.2f' \
+          % ((expenditures_noncardholders == 0).mean()))
+    print('Fraction of those who received a card and had no expenditures: %.2f' \
+          % ((expenditures_cardholders == 0).mean()))
+
+    # Drop leaky predictors from dataset
+    potential_leaks = ['expenditure', 'share', 'active', 'majorcards']
+    X2 = X.drop(potential_leaks, axis=1)
+
+    # Evaluate the model with leaky predictors removed
+    cv_scores = cross_val_score(my_pipeline, X2, y,
+                                cv=5,
+                                scoring='accuracy')
+
+    print("Cross-val accuracy: %f" % cv_scores.mean())
+
+
 if __name__ == '__main__':
     # introduction_exercise()
     # missing_values()
@@ -737,4 +792,5 @@ if __name__ == '__main__':
     # cross_validation()
     # cross_validation_exercise()
     # xgboost()
-    xgboost_exercise()
+    # xgboost_exercise()
+    data_leakage()
