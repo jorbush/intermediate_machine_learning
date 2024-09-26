@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 import matplotlib.pyplot as plt
+from xgboost import XGBRegressor
 
 def introduction_exercise():
     # Read the data
@@ -621,6 +622,110 @@ def cross_validation_exercise():
     n_estimators_best = min(results, key=results.get)
     print(n_estimators_best)
 
+
+def xgboost():
+    # optimize models with gradient boosting
+    # alternative to random forests
+
+    # Gradient boosting is a method that goes through cycles to
+    # iteratively add models into an ensemble.
+
+    # Read the data
+    data = pd.read_csv('./input/melb_data.csv')
+    # Select subset of predictors
+    cols_to_use = ['Rooms', 'Distance', 'Landsize', 'BuildingArea', 'YearBuilt']
+    X = data[cols_to_use]
+    # Select target
+    y = data.Price
+    # Separate data into training and validation sets
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y)
+
+    my_model = XGBRegressor()
+    my_model.fit(X_train, y_train)
+
+    predictions = my_model.predict(X_valid)
+    print("Mean Absolute Error: " + str(mean_absolute_error(predictions, y_valid)))
+
+    my_model = XGBRegressor(n_estimators=500)
+    my_model.fit(X_train, y_train)
+
+    predictions = my_model.predict(X_valid)
+    print("Mean Absolute Error: " + str(mean_absolute_error(predictions, y_valid)))
+
+    my_model = XGBRegressor(n_estimators=500, early_stopping_rounds=5)
+    my_model.fit(X_train, y_train,
+                 eval_set=[(X_valid, y_valid)],
+                 verbose=False)
+
+    predictions = my_model.predict(X_valid)
+    print("Mean Absolute Error: " + str(mean_absolute_error(predictions, y_valid)))
+
+    my_model = XGBRegressor(n_estimators=1000, early_stopping_rounds=5, learning_rate=0.05)
+    my_model.fit(X_train, y_train,
+                 eval_set=[(X_valid, y_valid)],
+                 verbose=False)
+
+    predictions = my_model.predict(X_valid)
+    print("Mean Absolute Error: " + str(mean_absolute_error(predictions, y_valid)))
+
+    my_model = XGBRegressor(n_estimators=1000, early_stopping_rounds=5, learning_rate=0.05, n_jobs=8)
+    my_model.fit(X_train, y_train,
+                 eval_set=[(X_valid, y_valid)],
+                 verbose=False)
+
+    predictions = my_model.predict(X_valid)
+    print("Mean Absolute Error: " + str(mean_absolute_error(predictions, y_valid)))
+
+def xgboost_exercise():
+    # Read the data
+    X = pd.read_csv('./input/train.csv', index_col='Id')
+    X_test_full = pd.read_csv('./input/test.csv', index_col='Id')
+    # Remove rows with missing target, separate target from predictors
+    X.dropna(axis=0, subset=['SalePrice'], inplace=True)
+    y = X.SalePrice
+    X.drop(['SalePrice'], axis=1, inplace=True)
+    # Break off validation set from training data
+    X_train_full, X_valid_full, y_train, y_valid = train_test_split(X, y, train_size=0.8, test_size=0.2,
+                                                                    random_state=0)
+    # "Cardinality" means the number of unique values in a column
+    # Select categorical columns with relatively low cardinality (convenient but arbitrary)
+    low_cardinality_cols = [cname for cname in X_train_full.columns if X_train_full[cname].nunique() < 10 and
+                            X_train_full[cname].dtype == "object"]
+    # Select numeric columns
+    numeric_cols = [cname for cname in X_train_full.columns if X_train_full[cname].dtype in ['int64', 'float64']]
+    # Keep selected columns only
+    my_cols = low_cardinality_cols + numeric_cols
+    X_train = X_train_full[my_cols].copy()
+    X_valid = X_valid_full[my_cols].copy()
+    X_test = X_test_full[my_cols].copy()
+    # One-hot encode the data (to shorten the code, we use pandas)
+    X_train = pd.get_dummies(X_train)
+    X_valid = pd.get_dummies(X_valid)
+    X_test = pd.get_dummies(X_test)
+    X_train, X_valid = X_train.align(X_valid, join='left', axis=1)
+    X_train, X_test = X_train.align(X_test, join='left', axis=1)
+
+    my_model_1 = XGBRegressor(random_state=0)
+    my_model_1.fit(X_train, y_train)
+    predictions_1 = my_model_1.predict(X_valid)
+    print("Mean Absolute Error model_1: " + str(mean_absolute_error(predictions_1, y_valid)))
+
+    my_model_2 = XGBRegressor(n_estimators=500, early_stopping_rounds=5, learning_rate=0.01, n_jobs=8)
+    my_model_2.fit(X_train, y_train,
+                 eval_set=[(X_valid, y_valid)],
+                 verbose=False)
+
+    predictions_2 = my_model_2.predict(X_valid)
+    print("Mean Absolute Error model_2: " + str(mean_absolute_error(predictions_2, y_valid)))
+
+    my_model_3 = XGBRegressor(n_estimators=1000, early_stopping_rounds=10, learning_rate=0.9, n_jobs=1)
+    my_model_3.fit(X_train, y_train,
+                   eval_set=[(X_valid, y_valid)],
+                   verbose=False)
+
+    predictions_3 = my_model_3.predict(X_valid)
+    print("Mean Absolute Error model_3: " + str(mean_absolute_error(predictions_3, y_valid)))
+
 if __name__ == '__main__':
     # introduction_exercise()
     # missing_values()
@@ -630,4 +735,6 @@ if __name__ == '__main__':
     # pipelines()
     # pipelines_exercise()
     # cross_validation()
-    cross_validation_exercise()
+    # cross_validation_exercise()
+    # xgboost()
+    xgboost_exercise()

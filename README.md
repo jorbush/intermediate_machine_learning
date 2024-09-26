@@ -5,6 +5,7 @@ Exercises done in [this](https://www.kaggle.com/learn/intermediate-machine-learn
 ## Requirements 
 
 - Python
+- `brew install libomp`
 
 ## Install dependencies
 
